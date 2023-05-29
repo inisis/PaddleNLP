@@ -462,6 +462,7 @@ class UNIMOLMHeadModel(UNIMOPretrainedModel):
     def prepare_fast_entry(self, kwargs):
         from paddlenlp.ops import FasterMIRO, FasterUNIMOText
 
+        decoding_lib = kwargs.get("decoding_lib", False)
         use_fp16_decoding = kwargs.get("use_fp16_decoding", False)
         decode_strategy = kwargs.get("decode_strategy")
         if decode_strategy == "sampling" and kwargs.get("top_k") != 0 and kwargs.get("top_p") != 1:
@@ -480,9 +481,11 @@ class UNIMOLMHeadModel(UNIMOPretrainedModel):
             )
 
         if getattr(self.encoder, "norm", None) is None:
-            self._fast_entry = FasterUNIMOText(self, use_fp16_decoding=use_fp16_decoding).forward
+            self._fast_entry = FasterUNIMOText(
+                self, use_fp16_decoding=use_fp16_decoding, decoding_lib=decoding_lib
+            ).forward
         else:
-            self._fast_entry = FasterMIRO(self, use_fp16_decoding=use_fp16_decoding).forward
+            self._fast_entry = FasterMIRO(self, use_fp16_decoding=use_fp16_decoding, decoding_lib=decoding_lib).forward
         return self._fast_entry
 
     def adjust_logits_during_generation(self, logits):
