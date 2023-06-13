@@ -1037,6 +1037,83 @@ class GenerationMixin(object):
                     **model_kwargs,
                 )
 
+    # TRIPLEMU GENERATE FAST
+    @paddle.no_grad()
+    def generate_fast(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        position_ids=None,
+        max_length=200,
+        min_length=10,
+        decode_strategy="beam_search",
+        temperature=1.0,
+        top_k=0,
+        top_p=1.0,
+        repetition_penalty=1.0,
+        num_beams=1,
+        num_beam_groups=1,
+        length_penalty=0.0,
+        early_stopping=False,
+        bos_token_id=None,
+        eos_token_id=None,
+        pad_token_id=None,
+        decoder_start_token_id=None,
+        forced_bos_token_id=None,
+        forced_eos_token_id=None,
+        no_repeat_ngram_size=None,
+        num_return_sequences=1,
+        diversity_rate=0.0,
+        use_cache=True,
+        use_fast=False,
+        use_fp16_decoding=False,
+        **model_kwargs
+    ):
+        output = self._fast_entry(
+            input_ids=input_ids,
+            token_type_ids=model_kwargs["token_type_ids"],
+            attention_mask=attention_mask,
+            seq_len=None,
+            max_length=max_length,
+            min_length=min_length,
+            top_k=top_k,
+            top_p=top_p,
+            num_beams=num_beams,
+            num_beam_groups=num_beam_groups,
+            decode_strategy=decode_strategy,
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            pad_token_id=pad_token_id,
+            diversity_rate=diversity_rate,
+            temperature=temperature,
+            num_return_sequences=num_return_sequences,
+            length_penalty=length_penalty,
+            early_stopping=early_stopping,
+            forced_eos_token_id=forced_eos_token_id,
+            forced_bos_token_id=forced_bos_token_id,
+            position_ids=position_ids,
+            use_cache=use_cache,
+            use_fast=use_fast,
+            use_fp16_decoding=use_fp16_decoding,
+            decoder_start_token_id=decoder_start_token_id,
+            no_repeat_ngram_size=no_repeat_ngram_size,
+            repetition_penalty=repetition_penalty,
+        )
+        if isinstance(output, tuple):
+            output_ids, dummy_srore = output
+        else:
+            output_ids = output
+            # make result and fast result oneconsistent
+            dummy_srore = None
+        if decode_strategy == "beam_search":
+            output_ids = output_ids.transpose([1, 2, 0])
+            output_ids = output_ids[:, :num_return_sequences, :].reshape([-1, output_ids.shape[-1]])
+            if dummy_srore is not None:
+                dummy_srore = dummy_srore[:, :num_return_sequences].flatten()
+        else:
+            output_ids = output_ids.transpose([1, 0])
+        return output_ids, dummy_srore
+
     def greedy_search(self, input_ids, logits_processors, max_length, pad_token_id, eos_token_id, **model_kwargs):
         model_kwargs["use_cache"] = model_kwargs.get("use_cache", True)
         logits_processors = logits_processors if logits_processors is not None else LogitsProcessorList()
